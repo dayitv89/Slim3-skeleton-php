@@ -9,16 +9,19 @@ $app->post(API_PATH_USER . '/login','loginUser');
 
 //-- public api methods
 function signupUser($request, $response, $args) {
-    $reqParam = getRequestBody($request);
+    //-- checking header 
+    $headerRes = checkHeader(getRequestHeader($request));
+    if($headerRes != null) { return $response->withJson(getError($headerRes, ERROR_HEADER_MISSING)); }
 
+    $reqParam = getRequestBody($request);
     if (!(isset($reqParam["fullname"]) &&
         isset($reqParam["phone"]) && 
         isset($reqParam["password"]) &&
         isset($reqParam["email"]) )) {
-        return $response->withJson(getError("Invalid param or required param missing", 440));
+        return $response->withJson(getError("Invalid param or required param missing", ERROR_DB_INCONSISTENCY));
     }
     
-    $user_agent = "iOS 9.3.2/iPhone 6/App 1.0(1)/api v1.0";
+    $user_agent = getRequestHeader($request)[HEADER_APP_USER_AGENT];
     $query = "INSERT INTO `users` (`fullname`, `phone`, `hashed_password`, `email`, `fb_uid`, `last_used`, `avatar_file`, `avatar_remote_url`, `created_at`, `updated_at`, `user_agent`, `last_user_agent`, `invite_code`, `invited_by`, `device_platform`, `pn_token`, `active`)
      VALUES (:fullname, :phone, :password, :email, NULL, '0', NULL, NULL, UTC_TIMESTAMP(), UTC_TIMESTAMP(), '$user_agent', '$user_agent', '', NULL, 'iOS', '', '1')";
     try {
@@ -36,18 +39,22 @@ function signupUser($request, $response, $args) {
     } catch(PDOException $e) {
     	//error_log($e->getMessage(), 3, '/var/tmp/php.log');
         if ($e->getCode() == '23000') {
-            return $response->withJson(getError('User already exist', 422, $e->getMessage()));
+            return $response->withJson(getError('User already exist', ERROR_USER_PRECONDITION, $e->getMessage()));
         } else {
-            return $response->withJson(getError($e->getMessage(), 440));
+            return $response->withJson(getError($e->getMessage(), ERROR_DB_INCONSISTENCY));
         }
     }
 }
 
 function loginUser($request, $response, $args) {
+    //-- checking header 
+    $headerRes = checkHeader(getRequestHeader($request));
+    if($headerRes != null) { return $response->withJson(getError($headerRes, ERROR_HEADER_MISSING)); }
+
     $reqParam = getRequestBody($request);
 
     if (!(isset($reqParam["password"]) && isset($reqParam["email"]) )) {
-        return $response->withJson(getError("Invalid param or required param missing", 440));
+        return $response->withJson(getError("Invalid param or required param missing", ERROR_DB_INCONSISTENCY));
     }
     
     $query = "SELECT `id`, `fullname`, `phone`, `email`, `fb_uid`, `last_used`, `avatar_file`, `avatar_remote_url`, `created_at`, `updated_at`, `invite_code`, `invited_by` FROM `users` WHERE `email` = :email AND `hashed_password` = :password";
@@ -61,15 +68,15 @@ function loginUser($request, $response, $args) {
         $stmt->execute();
         $dbRes = $stmt->fetch(PDO::FETCH_OBJ);
         if ($dbRes == false) {
-            return $response->withJson(getError('email/password mismatch', 421));   
+            return $response->withJson(getError('email/password mismatch', ERROR_USER_NOT_FOUND));   
         }
         return $response->withJson(getResponse($dbRes));
     } catch(PDOException $e) {
         //error_log($e->getMessage(), 3, '/var/tmp/php.log');
         if ($e->getCode() == '23000') {
-            return $response->withJson(getError('User already exist', 422, $e->getMessage()));
+            return $response->withJson(getError('User already exist', ERROR_USER_PRECONDITION, $e->getMessage()));
         } else {
-            return $response->withJson(getError($e->getMessage(), 440));
+            return $response->withJson(getError($e->getMessage(), ERROR_DB_INCONSISTENCY));
         }
     }
 }
@@ -85,11 +92,11 @@ function getUserInfo($user_id, $response, $db = null) {
         $dbRes = $stmt->fetch(PDO::FETCH_OBJ);
         $db = null;
         if ($dbRes == false) {
-            return $response->withJson(getError('user not found/ server internal error', 501));   
+            return $response->withJson(getError('user not found/ server internal error', ERROR_DB_INCONSISTENCY));   
         }
         return $response->withJson(getResponse($dbRes));
     } catch(PDOException $e) {
         //error_log($e->getMessage(), 3, '/var/tmp/php.log');
-        return $response->withJson(getError($e->getMessage(), 440));
+        return $response->withJson(getError($e->getMessage(), ERROR_DB_INCONSISTENCY));
     }
 }

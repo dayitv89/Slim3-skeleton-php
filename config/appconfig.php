@@ -1,26 +1,20 @@
 <?php
-function getSalt1() {
-	return 'asdf89sdfjwer93aksdfhks932o4n23nsduf789sar23hsjdfs';
-}
-
-function getSalt2() {
-	return 'sdresdfjs7823794234hjhwehrkwh87sdfhjsfsesdfhsd87sd';
-}
 
 function getMD5Hash($str) {
-	return md5(getSalt1().$str.getSalt2());
+	return md5(APP_HASH_1 . $str . APP_HASH_2);
 }
 
 function getUserToken($userEmail) {
-		return md5($_SERVER['REMOTE_ADDR']).getMD5Hash($userEmail.time()).md5(time());
+		return getMD5Hash($_SERVER['REMOTE_ADDR'] . $userEmail . time());
 }
 
 function getRequestHeader($request) {
-  // $headers = $request->getHeaders();
-  // foreach ($headers as $name => $values) {
-  //   echo $name . ": " . implode(", ", $values);
-  // }
-  return $request->getHeaders();
+  $headers = $request->getHeaders();
+  $res = null;
+  foreach ($headers as $name => $values) {
+    $res[$name] = implode(", ", $values);
+  }
+  return $res;//$request->getHeaders();
 }
 
 function getRequestBody($request) {
@@ -37,5 +31,22 @@ function getResponse($msg, $code = 200, $other = null, $status = true) {
   $res["Data"] = $msg;
   $res["OtherMsg"] = $other;
   return $res;
+}
+
+
+/* Use below code for header testing
+//-- checking header 
+$headerRes = checkHeader(getRequestHeader($request));
+if($headerRes != null) { return $response->withJson(getError($headerRes, ERROR_HEADER_MISSING)); }
+*/
+function checkHeader($header) {
+  if (isset($header)) {
+    if (!isset($header[HEADER_APP_USER_AGENT])) {
+      return "Header User Agent param missing";  
+    } 
+  } else {
+    return "Header missing";
+  }
+  return null;
 }
 

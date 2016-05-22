@@ -1,0 +1,6 @@
+<?php 
+//-- Error codes
+define('ERROR_USER_NOT_FOUND', 421);
+define('ERROR_USER_PRECONDITION', 422);
+define('ERROR_DB_INCONSISTENCY', 440);
+define('ERROR_HEADER_MISSING', 450);
